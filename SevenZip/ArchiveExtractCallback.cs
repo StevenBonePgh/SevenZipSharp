@@ -152,6 +152,8 @@ namespace SevenZip
         private void Init(IInArchive archive, Stream stream, int filesCount, uint fileIndex, SevenZipExtractor extractor)
         {
             CommonInit(archive, filesCount, extractor);
+            if(_fileStream != null)
+                _fileStream.Dispose();
             _fileStream = new OutStreamWrapper(stream, false);
             _fileStream.BytesWritten += IntEventArgsHandler;
             _fileIndex = fileIndex;
@@ -386,6 +388,8 @@ namespace SevenZip
                             {
 								//Patch 16476: Jun 12, 2014 to prevent Antivirus from locking file when datetime set. (1 of 2 changes)
                                 FileStream fileStream = new FileStream(fileName, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
+                                if (_fileStream != null)
+                                    _fileStream.Dispose();
                                 _fileStream = new OutStreamWrapper(fileStream, fileName, time, true);
                                 //_fileStream = new OutStreamWrapper(File.Create(fileName), fileName, time, true);
                             }
@@ -460,9 +464,13 @@ namespace SevenZip
                 OnFileExtractionStarted(iea);
                 if (iea.Cancel)
                 {
-                    if (!String.IsNullOrEmpty(fileName))
+                    if(_fileStream != null)
                     {
                         _fileStream.Dispose();
+                        _fileStream = null;
+                    }
+                    if (!String.IsNullOrEmpty(fileName))
+                    {
                         if (File.Exists(fileName))
                         {
                             try
@@ -491,18 +499,16 @@ namespace SevenZip
         public void SetOperationResult(OperationResult operationResult)
         {
             //SAB: Dispose the file stream even if errors occur.
-                if (_fileStream != null && !_fileIndex.HasValue)
+            if (_fileStream != null && !_fileIndex.HasValue)
+            {
+                try
                 {
-                    try
-                    {
                     _fileStream.BytesWritten -= IntEventArgsHandler;
-                        _fileStream.Dispose();
-                    }
-                    catch (ObjectDisposedException) { }
-                    _fileStream = null;
-                //GC.Collect();
-                //GC.WaitForPendingFinalizers();
+                    _fileStream.Dispose();
                 }
+                catch (ObjectDisposedException) { }
+                _fileStream = null;
+            }
 
             if (operationResult != OperationResult.Ok && ReportErrors)
             {

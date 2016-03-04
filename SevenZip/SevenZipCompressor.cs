@@ -1637,60 +1637,66 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
 #endif
         {
             var streamDict = new Dictionary<string, Stream>(fileDictionary.Count);
-            foreach (var pair in fileDictionary)
+            try
             {
-                if (pair.Value == null)
+                foreach (var pair in fileDictionary)
                 {
-                    streamDict.Add(pair.Key, null);
-                    continue;
-                }
-
-                if (!File.Exists(pair.Value))
-                {
-                    var errorEventArgs = new CompressionErrorEventArgs(CompressionErrorBehavior, CompressionErrorType.SourceFileMissing, pair.Value, pair.Key, null);
-                    CompressionErrorEventProxy(this, errorEventArgs);
-
-                    switch (errorEventArgs.ActionToTake)
+                    if (pair.Value == null)
                     {
-                        case CompressionErrorBehavior.ThrowException:
-                            throw new CompressionFailedException("The file corresponding to the archive entry \"" + pair.Key + "\" does not exist.");
-                        case CompressionErrorBehavior.SkipFile:
-                            continue;
-                        case CompressionErrorBehavior.ReplaceFileWithTextOfFailureReason:
-                            var stream = GenerateStreamFromString(string.Format("Source file '{0}' does not exist, cannot be compressed.", pair.Value));
-                            streamDict.Add(pair.Key, stream);
-                            continue;
-                        default:
-                            throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
+                        streamDict.Add(pair.Key, null);
+                        continue;
+                    }
+
+                    if (!File.Exists(pair.Value))
+                    {
+                        var errorEventArgs = new CompressionErrorEventArgs(CompressionErrorBehavior, CompressionErrorType.SourceFileMissing, pair.Value, pair.Key, null);
+                        CompressionErrorEventProxy(this, errorEventArgs);
+
+                        switch (errorEventArgs.ActionToTake)
+                        {
+                            case CompressionErrorBehavior.ThrowException:
+                                throw new CompressionFailedException("The file corresponding to the archive entry \"" + pair.Key + "\" does not exist.");
+                            case CompressionErrorBehavior.SkipFile:
+                                continue;
+                            case CompressionErrorBehavior.ReplaceFileWithTextOfFailureReason:
+                                var stream = GenerateStreamFromString(string.Format("Source file '{0}' does not exist, cannot be compressed.", pair.Value));
+                                streamDict.Add(pair.Key, stream);
+                                continue;
+                            default:
+                                throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
+                        }
+                    }
+
+                    try
+                    {
+                        var stream = new FileStream(pair.Value, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        streamDict.Add(pair.Key, stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        var errorEventArgs = new CompressionErrorEventArgs(CompressionErrorBehavior, CompressionErrorType.SourceFileCannotBeOpened, pair.Value, pair.Key, ex);
+                        CompressionErrorEventProxy(this, errorEventArgs);
+                        switch (errorEventArgs.ActionToTake)
+                        {
+                            case CompressionErrorBehavior.ThrowException:
+                                throw;
+                            case CompressionErrorBehavior.SkipFile:
+                                continue;
+                            case CompressionErrorBehavior.ReplaceFileWithTextOfFailureReason:
+                                var stream = GenerateStreamFromString(string.Format("Could not open stream for source file '{0}' to compress it: {1}", pair.Value, ex.Message));
+                                streamDict.Add(pair.Key, stream);
+                                continue;
+                            default:
+                                throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
+                        }
                     }
                 }
-
-                try
-                {
-                    var stream = new FileStream(pair.Value, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    streamDict.Add(pair.Key, stream);
-                }
-                catch (Exception ex)
-                {
-                    var errorEventArgs = new CompressionErrorEventArgs(CompressionErrorBehavior, CompressionErrorType.SourceFileCannotBeOpened, pair.Value, pair.Key, ex);
-                    CompressionErrorEventProxy(this, errorEventArgs);
-                    switch (errorEventArgs.ActionToTake)
-                    {
-                        case CompressionErrorBehavior.ThrowException:
-                            throw;
-                        case CompressionErrorBehavior.SkipFile:
-                            continue;
-                        case CompressionErrorBehavior.ReplaceFileWithTextOfFailureReason:
-                            var stream = GenerateStreamFromString(string.Format("Could not open stream for source file '{0}' to compress it: {1}", pair.Value, ex.Message));
-                            streamDict.Add(pair.Key, stream);
-                            continue;
-                        default:
-                            throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
-                    }
-                }
+                CompressStreamDictionary(streamDict, archiveStream, password);
             }
-            //The created streams will be automatically disposed inside.
-            CompressStreamDictionary(streamDict, archiveStream, password);
+            finally
+            {
+                DisposeStreamDictionary(streamDict);
+            }
         }
 
         private static Stream GenerateStreamFromString(string value)
@@ -1734,7 +1740,7 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
     /// Packs the specified stream dictionary.
     /// </summary>
     /// <param name="streamDictionary">Dictionary&lt;name of the archive entry, stream&gt;.
-    /// If a stream is null, the corresponding string becomes a directory name.</param>
+    /// If a stream is null, the corresponding string becomes a directory name. Stream Dictionary will be cleared and Disposed.</param>
     /// <param name="archiveName">The archive file name.</param>
     /// <param name="password">The archive password.</param>
         public void CompressStreamDictionary(
@@ -1744,23 +1750,49 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
         /// Packs the specified stream dictionary.
         /// </summary>
         /// <param name="streamDictionary">Dictionary&lt;name of the archive entry, stream&gt;.
-        /// If a stream is null, the corresponding string becomes a directory name.</param>
+        /// If a stream is null, the corresponding string becomes a directory name.  Stream Dictionary will be cleared and Disposed.</param>
         /// <param name="archiveName">The archive file name.</param>
         /// <param name="password">The archive password.</param>
         public void CompressStreamDictionary(Dictionary<string, Stream> streamDictionary, string archiveName, string password = "")
 #endif
         {
-            _compressingFilesOnDisk = true;
-            _archiveName = archiveName;
-            using (FileStream fs = GetArchiveFileStream(archiveName))
+            try
             {
-                if (fs == null && _volumeSize == 0)
+                _compressingFilesOnDisk = true;
+                _archiveName = archiveName;
+                using (FileStream fs = GetArchiveFileStream(archiveName))
                 {
-                    return;
+                    if (fs == null && _volumeSize == 0)
+                    {
+                        return;
+                    }
+                    CompressStreamDictionary(streamDictionary, fs, password);
                 }
-                CompressStreamDictionary(streamDictionary, fs, password);
+                FinalizeUpdate();
             }
-            FinalizeUpdate();
+            finally
+            {
+                DisposeStreamDictionary(streamDictionary);
+            }
+        }
+
+        private static void DisposeStreamDictionary(Dictionary<string, Stream> streamDictionary)
+        {
+            if (streamDictionary == null)
+                return;
+            foreach (var kvp in streamDictionary)
+            {
+                if (kvp.Value == null)
+                    continue;
+                try
+                {
+                    kvp.Value.Dispose();
+                }
+                catch (Exception)
+                {
+                }
+            }
+            streamDictionary.Clear();
         }
 
 #if !CS4
@@ -1768,7 +1800,7 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
     /// Packs the specified stream dictionary.
     /// </summary>
     /// <param name="streamDictionary">Dictionary&lt;name of the archive entry, stream&gt;.
-    /// If a stream is null, the corresponding string becomes a directory name.</param>
+    /// If a stream is null, the corresponding string becomes a directory name. Stream Dictionary will be cleared and Disposed.</param>
     /// <param name="archiveStream">The archive output stream.
     /// Use CompressStreamDictionary( ... string archiveName ... ) overloads for archiving to disk.</param>
     /// <param name="password">The archive password.</param>
@@ -1779,96 +1811,112 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
         /// Packs the specified stream dictionary.
         /// </summary>
         /// <param name="streamDictionary">Dictionary&lt;name of the archive entry, stream&gt;.
-        /// If a stream is null, the corresponding string becomes a directory name.</param>
+        /// If a stream is null, the corresponding string becomes a directory name. Stream Dictionary will be cleared and Disposed.</param>
         /// <param name="archiveStream">The archive output stream.
         /// Use CompressStreamDictionary( ... string archiveName ... ) overloads for archiving to disk.</param>
         /// <param name="password">The archive password.</param>
         public void CompressStreamDictionary(Dictionary<string, Stream> streamDictionary, Stream archiveStream, string password = "")
 #endif
         {
-            ClearExceptions();
-            if (streamDictionary.Count > 1 && (_archiveFormat == OutArchiveFormat.BZip2 || _archiveFormat == OutArchiveFormat.GZip || _archiveFormat == OutArchiveFormat.XZ))
+            try
             {
-                if (!ThrowException(null, new CompressionFailedException("Can not compress more than one file/stream in this format.")))
+                ClearExceptions();
+                if (streamDictionary.Count > 1 &&
+                    (_archiveFormat == OutArchiveFormat.BZip2 || _archiveFormat == OutArchiveFormat.GZip || _archiveFormat == OutArchiveFormat.XZ))
                 {
-                    return;
-                }
-            }
-            if (_volumeSize == 0 || !_compressingFilesOnDisk)
-            {
-                ValidateStream(archiveStream);
-            }
-#if CS4
-            if (streamDictionary.Where(pair => pair.Value != null && (!pair.Value.CanSeek || !pair.Value.CanRead)).Any(pair => !ThrowException(null, new ArgumentException("The specified stream dictionary contains an invalid stream corresponding to the archive entry \"" + pair.Key + "\".", "streamDictionary"))))
-            {
-                return;
-            }
-#else
-            foreach (var pair in streamDictionary)
-            {
-                if (pair.Value != null && (!pair.Value.CanSeek || !pair.Value.CanRead))
-                {
-                    if (!ThrowException(null, new ArgumentException(
-                            "The specified stream dictionary contains an invalid stream corresponding to the archive entry \"" + pair.Key + "\".",
-                            "streamDictionary")))
+                    if (!ThrowException(null, new CompressionFailedException("Can not compress more than one file/stream in this format.")))
                     {
                         return;
                     }
                 }
-            }
-#endif
-            try
-            {
-                ISequentialOutStream sequentialArchiveStream;
-                using ((sequentialArchiveStream = GetOutStream(archiveStream)) as IDisposable)
+                if (_volumeSize == 0 || !_compressingFilesOnDisk)
                 {
-                    IInStream inArchiveStream;
-                    using ((inArchiveStream = GetInStream()) as IDisposable)
+                    ValidateStream(archiveStream);
+                }
+#if CS4
+                if (
+                    streamDictionary.Where(pair => pair.Value != null && (!pair.Value.CanSeek || !pair.Value.CanRead))
+                        .Any(
+                            pair =>
+                                !ThrowException(null,
+                                    new ArgumentException(
+                                        "The specified stream dictionary contains an invalid stream corresponding to the archive entry \"" + pair.Key + "\".",
+                                        "streamDictionary"))))
+                {
+                    return;
+                }
+#else
+                foreach (var pair in streamDictionary)
+                {
+                    if (pair.Value != null && (!pair.Value.CanSeek || !pair.Value.CanRead))
                     {
-                        IOutArchive outArchive;
-                        if (CompressionMode == CompressionMode.Create || !_compressingFilesOnDisk)
+                        if (!ThrowException(null, new ArgumentException(
+                                "The specified stream dictionary contains an invalid stream corresponding to the archive entry \"" + pair.Key + "\".",
+                                "streamDictionary")))
                         {
-                            SevenZipLibraryManager.LoadLibrary(this, _archiveFormat);
-                            outArchive = SevenZipLibraryManager.OutArchive(_archiveFormat, this);
+                            return;
                         }
-                        else
+                    }
+                }
+#endif
+                try
+                {
+                    ISequentialOutStream sequentialArchiveStream;
+                    using ((sequentialArchiveStream = GetOutStream(archiveStream)) as IDisposable)
+                    {
+                        IInStream inArchiveStream;
+                        using ((inArchiveStream = GetInStream()) as IDisposable)
                         {
-                            // Create IInArchive, read it and convert to IOutArchive
-                            SevenZipLibraryManager.LoadLibrary(this, Formats.InForOutFormats[_archiveFormat]);
-                            if ((outArchive = MakeOutArchive(inArchiveStream, password)) == null)
+                            IOutArchive outArchive;
+                            if (CompressionMode == CompressionMode.Create || !_compressingFilesOnDisk)
                             {
-                                return;
+                                SevenZipLibraryManager.LoadLibrary(this, _archiveFormat);
+                                outArchive = SevenZipLibraryManager.OutArchive(_archiveFormat, this);
                             }
-                        }
-                        using (ArchiveUpdateCallback auc = GetArchiveUpdateCallback(streamDictionary, password))
-                        {
-                            try
+                            else
                             {
-                                CheckedExecute(outArchive.UpdateItems(sequentialArchiveStream, (uint) streamDictionary.Count + _oldFilesCount, auc), SevenZipCompressionFailedException.DEFAULT_MESSAGE, auc);
+                                // Create IInArchive, read it and convert to IOutArchive
+                                SevenZipLibraryManager.LoadLibrary(this, Formats.InForOutFormats[_archiveFormat]);
+                                if ((outArchive = MakeOutArchive(inArchiveStream, password)) == null)
+                                {
+                                    return;
+                                }
                             }
-                            finally
+                            using (ArchiveUpdateCallback auc = GetArchiveUpdateCallback(streamDictionary, password))
                             {
-                                FreeCompressionCallback(auc);
+                                try
+                                {
+                                    CheckedExecute(outArchive.UpdateItems(sequentialArchiveStream, (uint) streamDictionary.Count + _oldFilesCount, auc),
+                                        SevenZipCompressionFailedException.DEFAULT_MESSAGE, auc);
+                                }
+                                finally
+                                {
+                                    FreeCompressionCallback(auc);
+                                }
                             }
                         }
                     }
                 }
+                finally
+                {
+                    if (CompressionMode == CompressionMode.Create || !_compressingFilesOnDisk)
+                    {
+                        SevenZipLibraryManager.FreeLibrary(this, _archiveFormat);
+                    }
+                    else
+                    {
+                        SevenZipLibraryManager.FreeLibrary(this, Formats.InForOutFormats[_archiveFormat]);
+                        File.Delete(_archiveName);
+                    }
+                    _compressingFilesOnDisk = false;
+                    OnEvent(CompressionFinished, EventArgs.Empty, false);
+                }
+                ThrowUserException();
             }
             finally
             {
-                if (CompressionMode == CompressionMode.Create || !_compressingFilesOnDisk)
-                {
-                    SevenZipLibraryManager.FreeLibrary(this, _archiveFormat);
-                }
-                else
-                {
-                    SevenZipLibraryManager.FreeLibrary(this, Formats.InForOutFormats[_archiveFormat]);
-                    File.Delete(_archiveName);
-                }
-                _compressingFilesOnDisk = false;
-                OnEvent(CompressionFinished, EventArgs.Empty, false);
+                DisposeStreamDictionary(streamDictionary);
             }
-            ThrowUserException();
         }
 
         #endregion
