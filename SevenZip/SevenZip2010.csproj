@@ -41,7 +41,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;UNMANAGED, COMPRESS, LZMA_STREAM, CS4</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CODE_ANALYSIS;UNMANAGED, COMPRESS, LZMA_STREAM, CS4</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <RegisterForComInterop>false</RegisterForComInterop>
@@ -57,11 +57,12 @@
     <WarningLevel>4</WarningLevel>
     <RegisterForComInterop>false</RegisterForComInterop>
     <DocumentationFile>bin\Release\SevenZipSharp.xml</DocumentationFile>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Deploy|AnyCPU' ">
     <OutputPath>bin\Deploy\</OutputPath>
     <DefineConstants>TRACE;UNMANAGED, COMPRESS, LZMA_STREAM</DefineConstants>
-    <DocumentationFile>bin\Release\SevenZip.XML</DocumentationFile>
+    <DocumentationFile>bin\Deploy\SevenZipSharp.xml</DocumentationFile>
     <Optimize>true</Optimize>
     <RegisterForComInterop>false</RegisterForComInterop>
     <DebugType>pdbonly</DebugType>
@@ -69,12 +70,15 @@
     <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
     <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
     <ErrorReport>prompt</ErrorReport>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFrameworkVersion)' != 'v2.0' ">
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
@@ -117,7 +121,6 @@
     <Compile Include="StreamWrappers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
     <None Include="sfx\7zS.sfx" />
     <None Include="sfx\7zxSD_All.sfx" />
     <None Include="sfx\7zxSD_PPMd_x64.sfx" />

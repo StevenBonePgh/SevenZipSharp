@@ -62,8 +62,8 @@ namespace SevenZip
         private readonly string _password;
         private readonly bool _reportErrors;
         private readonly int _uniqueID;
-        /// <summary>   Unique identifier source. Use Interlocked.Increment(ref IncrementingUniqueId) to get the next UniqueID.</summary>
-        private static int IncrementingUniqueId = 1;
+        /// <summary>   Unique identifier source. Use System.Threading.Interlocked.Increment(ref IncrementingUniqueId) to get the next UniqueID.</summary>
+        private static int IncrementingUniqueId = Environment.TickCount;
 #if !WINCE
         internal static readonly AsyncCallback AsyncCallbackImplementation = AsyncCallbackMethod;
 
@@ -207,7 +207,7 @@ Dispatcher == null
         }
 #endif
         /// <summary>
-        /// Gets the unique identificator of this SevenZipBase instance.
+        /// Gets the unique identifier of this SevenZipBase instance.
         /// </summary>
         public int UniqueID
         {

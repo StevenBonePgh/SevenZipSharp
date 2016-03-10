@@ -1238,14 +1238,14 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
                                 IInArchive sourceArchive =  (IInArchive) outArchive;
 
                                 uint itemsCount = sourceArchive.GetNumberOfItems();
-                                HashSet<string> oldFileNameSet= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                var oldFileNameSet= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
                                 for (uint i = 0; i < itemsCount; i++)
                                 {
                                     var data = new PropVariant();
                                     sourceArchive.GetProperty(i, ItemPropId.Path, ref data );
                                     string pathName = NativeMethods.SafeCast(data, "nopath");
-                                    oldFileNameSet.Add(pathName);
+                                    oldFileNameSet.Add(pathName, null);
                                 }
 
                                 for (uint i = 0; i < altNames.Length; i++)
@@ -1256,10 +1256,9 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
                                     else
                                         key = fileFullNames[i].Substring(commonRootLength);
 
-                                    if (oldFileNameSet.Contains(key))
+                                    if (oldFileNameSet.ContainsKey(key))
                                         throw new ArgumentException("Entry \"" + altNames[i] + "\" already exists in the current archive");
                                 }
-                                oldFileNameSet = null;
                             }
                         }
                         using (var auc = GetArchiveUpdateCallback(files, altNames, commonRootLength, password))

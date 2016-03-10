@@ -26,3 +26,12 @@
 *.exe
 *.out
 *.app
+*.suo
+/SevenZip/obj/Debug
+/SevenZipTestWPF/bin/Debug
+/SevenZipTestWPF/obj/x86/Debug
+/SevenZipTest/obj/Debug
+/SevenZipTest/bin/Debug
+/SevenZip/bin/Debug
+/SevenZip/packages/SevenZipSharp.Interop.9.38.1
+/SevenZip/HashSet.cs

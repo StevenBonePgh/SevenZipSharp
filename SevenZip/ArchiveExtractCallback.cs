@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
+using System.Text.RegularExpressions;
 
 #if MONO
 using SevenZip.Mono.COM;
@@ -52,7 +52,7 @@ namespace SevenZip
         /// Rate of the done work from [0, 1].
         /// </summary>
         private float _doneRate;
-
+            
         private SevenZipExtractor _extractor;
         private FakeOutStreamWrapper _fakeStream;
         private uint? _fileIndex;
@@ -60,10 +60,27 @@ namespace SevenZip
         private OutStreamWrapper _fileStream;
         private bool _directoryStructure;
         private int _currentIndex;
+
+        /// <summary> Usage: string legalFilename = InvalidFileNameCharsRegex.Replace(illegal, "_"); </summary>
+        private static readonly Regex InvalidFileNameCharsRegex;
+        /// <summary> Usage: string legalPath = InvalidPathCharsRegex.Replace(illegal, "_"); </summary>
+        private static readonly Regex InvalidPathCharsRegex;
+
 #if !WINCE
         const int MEMORY_PRESSURE = 64 * 1024 * 1024; //64mb seems to be the maximum value
 #endif
         #region Constructors
+
+        static ArchiveExtractCallback()
+        {
+            //  GetInvalidFileNameChars() is not complete.  Should also include: quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).
+            var invalidFileNameChars = Path.GetInvalidFileNameChars() + "\"<>|\b\t\0";
+            InvalidFileNameCharsRegex = new Regex(string.Format("[{0}]", Regex.Escape(invalidFileNameChars)), RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+            //  GetInvalidPathChars() is not complete.  Should also include: quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).
+            var invalidPathChars = Path.GetInvalidPathChars() + "\"<>|\b\t\0";
+            InvalidPathCharsRegex = new Regex(string.Format("[{0}]", Regex.Escape(invalidPathChars)), RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        }
 
         /// <summary>
         /// Initializes a new instance of the ArchiveExtractCallback class
@@ -635,14 +652,6 @@ namespace SevenZip
             return String.Join(new string(Path.DirectorySeparatorChar, 1), splittedFileName.ToArray());
         }
 
-        //  GetInvalidFileNameChars() is not complete.  Should also include:
-        //     quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).
-        private static readonly HashSet<char> InvalidFileNameChars = new HashSet<char>((new string(Path.GetInvalidFileNameChars()) + "\"<>|\b\t\0"));
-
-        //  GetInvalidPathChars() is not complete.  Should also include:
-        //     quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).
-        private static readonly HashSet<char> InvalidPathChars = new HashSet<char>((new string(Path.GetInvalidPathChars()) + "\"<>|\b\t\0"));
-
         /// <summary>   Given a proposed filename, returns a string that eliminates any disallowed characters.
         ///             If stripping characters results in an empty string, it returns '_'</summary>
         /// <param name="filename"> proposed filename.</param>
@@ -652,13 +661,7 @@ namespace SevenZip
             if (string.IsNullOrEmpty(filename))
                 return filename;
 
-            //see comment on InvalidFileNameChars
-            if (!filename.Any(c => InvalidFileNameChars.Contains(c)))
-                return filename;
-            var str = new string(filename.Where(c => !InvalidFileNameChars.Contains(c)).ToArray());
-            if (str.Length == 0)
-                return "_";
-            return str;
+            return InvalidFileNameCharsRegex.Replace(filename, "_");
         }
 
         /// <summary>   Given a proposed directory path, returns a string that eliminates any disallowed characters.
@@ -671,13 +674,7 @@ namespace SevenZip
             if (string.IsNullOrEmpty(pathname))
                 return pathname;
 
-            //see comment on InvalidPathChars
-            if (!pathname.Any(c => InvalidPathChars.Contains(c)))
-                return pathname;
-            var str = new string(pathname.Where(c => !InvalidPathChars.Contains(c)).ToArray());
-            if (str.Length == 0)
-                return "_";
-            return str;
+            return InvalidPathCharsRegex.Replace(pathname, "_");
         }
     }
 #endif
