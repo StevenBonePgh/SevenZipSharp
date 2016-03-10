@@ -17,14 +17,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 #if !WINCE
 using System.Runtime.Remoting.Messaging;
 #endif
-#if DOTNET20
-using System.Threading;
-#else
+#if !DOTNET20
 using System.Windows.Threading;
 #endif
 #if MONO
@@ -373,6 +372,17 @@ Dispatcher == null
             SevenZipLibraryManager.SetLibraryPath(libraryPath);
         }
 #endif
+
+        /// <summary>
+        /// Returns the version information of the native 7zip library.
+        /// </summary>
+        /// <returns>An object representing the version information of the native 7zip library.</returns>
+        [CLSCompliant(false)]
+        public static FileVersionInfo GetLibraryVersion()
+        {
+            return SevenZipLibraryManager.GetLibraryVersion();
+        }
+
         /// <summary>
         /// Gets the current library features.
         /// </summary>

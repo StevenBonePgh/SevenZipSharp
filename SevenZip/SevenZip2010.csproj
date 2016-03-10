@@ -124,15 +124,17 @@
     <None Include="sfx\7zS.sfx" />
     <None Include="sfx\7zxSD_All.sfx" />
     <None Include="sfx\7zxSD_PPMd_x64.sfx" />
+    <EmbeddedResource Include="x64\7z.dll.gz" />
+    <EmbeddedResource Include="x86\7z.dll.gz" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="sfx\Configs.xml" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="7z.dll" />
-    <Content Include="7z64.dll" />
     <Content Include="arch\Test.txt" />
     <Content Include="sfx\Configs.xslt" />
+    <None Include="x64\7z.dll" />
+    <None Include="x86\7z.dll" />
   </ItemGroup>
   <ItemGroup>
     <None Include="sfx\7zSD.sfx" />
@@ -161,23 +163,6 @@
     <None Include="sfx\7z.sfx" />
     <None Include="sfx\7zCon.sfx" />
   </ItemGroup>
-  <ItemGroup>
-    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
-      <Visible>False</Visible>
-      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
-      <Install>false</Install>
-    </BootstrapperPackage>
-    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
-      <Visible>False</Visible>
-      <ProductName>.NET Framework 3.5 SP1</ProductName>
-      <Install>true</Install>
-    </BootstrapperPackage>
-    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
-      <Visible>False</Visible>
-      <ProductName>Windows Installer 3.1</ProductName>
-      <Install>true</Install>
-    </BootstrapperPackage>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
@@ -186,25 +171,4 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <PropertyGroup>
-    <PostBuildEvent>@echo off
-set RegQry=HKLM\Hardware\Description\System\CentralProcessor\0
-reg.exe Query %25RegQry%25 &gt; checkOS.txt
-find /i "x86" &lt; checkOS.txt &gt;nul
-
-if %25ERRORLEVEL%25 == 0 ( goto 32bit ) else ( goto 64bit )
-
-:32bit
-echo Copying the 32-bit 7-Zip DLL...
-copy /B /Y $(ProjectDir)7z.dll $(TargetDir)7z.dll
-goto exit
-
-:64bit
-echo Copying the 64-bit 7-Zip DLL...
-copy /B /Y $(ProjectDir)7z64.dll $(TargetDir)7z.dll
-goto exit
-
-:exit
-del /Q checkOS.txt</PostBuildEvent>
-  </PropertyGroup>
 </Project>

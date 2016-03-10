@@ -95,7 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SevenZip\SevenZip2010.csproj">
-      <Project>{4960DD14-3431-47EC-B9D9-9D2730A98DC3}</Project>
+      <Project>{4960dd14-3431-47ec-b9d9-9d2730a98dc3}</Project>
       <Name>SevenZip2010</Name>
     </ProjectReference>
   </ItemGroup>

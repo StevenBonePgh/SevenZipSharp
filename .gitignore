@@ -11,7 +11,6 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
 
 # Fortran module files
 *.mod
@@ -22,16 +21,20 @@
 *.a
 *.lib
 
+#Visual Studio User Files
+*.user
+
 # Executables
 *.exe
 *.out
 *.app
 *.suo
-/SevenZip/obj/Debug
-/SevenZipTestWPF/bin/Debug
-/SevenZipTestWPF/obj/x86/Debug
-/SevenZipTest/obj/Debug
-/SevenZipTest/bin/Debug
-/SevenZip/bin/Debug
-/SevenZip/packages/SevenZipSharp.Interop.9.38.1
-/SevenZip/HashSet.cs
+/SevenZip/obj
+/SevenZip/bin
+/SevenZip/.vs
+/SevenZipTestWPF/bin
+/SevenZipTestWPF/obj
+/SevenZipTestWPF/.vs
+/SevenZipTest/obj
+/SevenZipTest/bin
+/SevenZipTest/.vs

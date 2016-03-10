@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 #if !WINCE && !MONO
 using System.Configuration;
 using System.Diagnostics;
@@ -25,9 +26,14 @@ using System.Security.Permissions;
 using OpenNETCF.Diagnostics;
 #endif
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
+using System.Threading;
+
 #if MONO
 using SevenZip.Mono.COM;
 #endif
@@ -45,7 +51,6 @@ namespace SevenZip
         /// </summary>
         private static readonly object _syncRoot = new object();
 
-#if !WINCE && !MONO
         /// <summary>
         /// Path to the 7-zip dll.
         /// </summary>
@@ -56,13 +61,8 @@ namespace SevenZip
         ///     - Built decoders: LZMA, PPMD, BCJ, BCJ2, COPY, AES-256 Encryption, BZip2, Deflate.
         /// 7z.dll (from the 7-zip distribution) supports every InArchiveFormat for encoding and decoding.
         /// </remarks>
-        private static string _libraryFileName = ConfigurationManager.AppSettings["7zLocation"] ??
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "7z.dll");
-#endif
-#if WINCE 		
-        private static string _libraryFileName =
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetName().CodeBase), "7z.dll");
-#endif
+        private static string _libraryFileName;
+
         /// <summary>
         /// 7-zip library handle.
         /// </summary>
@@ -138,11 +138,12 @@ namespace SevenZip
 #if !WINCE && !MONO
                 if (_modulePtr == IntPtr.Zero)
                 {
-                    if (!File.Exists(_libraryFileName))
+                    var libraryFileName = GetLibraryPath();
+                    if (!File.Exists(libraryFileName))
                     {
                         throw new SevenZipLibraryException("DLL file does not exist.");
                     }
-                    if ((_modulePtr = NativeMethods.LoadLibrary(_libraryFileName)) == IntPtr.Zero)
+                    if ((_modulePtr = NativeMethods.LoadLibrary(libraryFileName)) == IntPtr.Zero)
                     {
                         throw new SevenZipLibraryException("failed to load library.");
                     }
@@ -170,25 +171,6 @@ namespace SevenZip
             }
         }
 
-        /*/// <summary>
-        /// Gets the native 7zip library version string.
-        /// </summary>
-        public static string LibraryVersion
-        {
-            get
-            {
-                if (String.IsNullOrEmpty(_LibraryVersion))
-                {
-                    FileVersionInfo dllVersionInfo = FileVersionInfo.GetVersionInfo(_libraryFileName);
-                    _LibraryVersion = String.Format(
-                        System.Globalization.CultureInfo.CurrentCulture,
-                        "{0}.{1}",
-                        dllVersionInfo.FileMajorPart, dllVersionInfo.FileMinorPart);
-                }
-                return _LibraryVersion;
-            }
-        }*/
-
         /// <summary>
         /// Gets the value indicating whether the library supports modifying archives.
         /// </summary>
@@ -201,7 +183,7 @@ namespace SevenZip
                     if (!_modifyCapabale.HasValue)
                     {
 #if !WINCE && !MONO
-                        FileVersionInfo dllVersionInfo = FileVersionInfo.GetVersionInfo(_libraryFileName);
+                        FileVersionInfo dllVersionInfo = FileVersionInfo.GetVersionInfo(GetLibraryPath());
                         _modifyCapabale = dllVersionInfo.FileMajorPart >= 9;
 #else
                     _modifyCapabale = true;
@@ -554,11 +536,170 @@ namespace SevenZip
 
         }
 #endif
+
+        /// <summary>   Gets the 7zip library path.</summary>
+        /// <exception cref="TimeoutException"> Thrown when a Timeout error condition occurs.</exception>
+        /// <returns>   The library path.</returns>
+        /// <remarks> How we get the library path:
+        ///           1. [All] The value provided to a previous call to SetLibraryPath() is used.  
+        ///           2. [WindowsCE] A file called 7z.dll in the same directory as this assembly.  
+        ///           3. [Full Framework] app.config AppSetting '7zLocation' which must be path to the proper bit 7z.dll  
+        ///           4. [All] Embedded resource is extracted to %TEMP% and used. (assuming build with embedded 7z.dll is used)  
+        ///           5. [All] 7z.dll from a x86 or x64 subdirectory of this assembly's directory.  
+        ///           6. [All] 7za.dll from a x86 or x64 subdirectory of this assembly's directory.  
+        ///           7. [All] 7z86.dll or 7z64.dll in the same directory as this assembly.    
+        ///           8. [All] 7za86.dll or 7za64.dll in the same directory as this assembly.    
+        ///           9. [All] A file called 7z.dll in the same directory as this assembly.  
+        ///           10. [All] A file called 7za.dll in the same directory as this assembly.  
+        ///           If not found, we give up and fail.
+        /// </remarks>
+        private static string GetLibraryPath()
+        {
+            if (_libraryFileName != null && (_modulePtr != IntPtr.Zero || File.Exists(_libraryFileName)))
+                return _libraryFileName;
+            
+            string default7zPath = null;
+
 #if !WINCE && !MONO
+            var sevenZipLocation = ConfigurationManager.AppSettings["7zLocation"];
+            if(!string.IsNullOrEmpty(sevenZipLocation) && File.Exists(sevenZipLocation))
+            {
+                _libraryFileName = sevenZipLocation;
+                return _libraryFileName;
+            }
+            default7zPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+#endif
+#if WINCE
+            default7zPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetName().CodeBase);
+            var sevenZipLocation = Path.Combine(default7zPath, "7z.dll");
+            if(File.Exists(sevenZipLocation))
+            {
+                _libraryFileName = sevenZipLocation;
+                return _libraryFileName;
+            }
+#endif
+            var bitness = IntPtr.Size == 4 ? "x86" : "x64";
+            var thisType = typeof(SevenZipLibraryManager);
+            var version = thisType.Assembly.GetName().Version.ToString(3);
+            _libraryFileName = Path.Combine(Path.GetTempPath(), String.Join(Path.DirectorySeparatorChar.ToString(), new string[] { "SevenZipSharp", version, bitness, "7z.dll"}));
+            if (File.Exists(_libraryFileName))
+                return _libraryFileName;
+
+            //NOTE: This is the approach used in https://github.com/jacobslusser/ScintillaNET for handling the native component.
+            //      I liked it, so I added it to this project.  We could have a build configuration that doesn't embed the dlls
+            //      to make our assembly smaller and future proof, but you'd need to handle distributing and setting the dll yourself.
+            // Extract the embedded DLL http://stackoverflow.com/a/768429/2073621
+            // Synchronize access to the file across processes http://stackoverflow.com/a/229567/2073621
+            var guid = ((GuidAttribute)thisType.Assembly.GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value.ToString();
+            var name = string.Format(CultureInfo.InvariantCulture, "Global\\{{{0}}}", guid);
+            using (var mutex = new Mutex(false, name))
+            {
+                var access = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
+                var security = new MutexSecurity();
+                security.AddAccessRule(access);
+                mutex.SetAccessControl(security);
+
+                var ownsHandle = false;
+                try
+                {
+                    try
+                    {
+                        ownsHandle = mutex.WaitOne(5000, false); // 5 sec
+                        if (!ownsHandle)
+                        {
+                            var timeoutMessage = string.Format(CultureInfo.InvariantCulture, "Timeout waiting for exclusive access to '{0}'.", _libraryFileName);
+                            throw new TimeoutException(timeoutMessage);
+                        }
+                    }
+                    catch (AbandonedMutexException)
+                    {
+                        // Previous process terminated abnormally
+                        ownsHandle = true;
+                    }
+
+                    // Double-checked (process) lock
+                    if (File.Exists(_libraryFileName))
+                        return _libraryFileName;
+
+                    // Write the embedded file to disk
+                    var directory = Path.GetDirectoryName(_libraryFileName);
+                    if (!Directory.Exists(directory))
+                        Directory.CreateDirectory(directory);
+                                
+                    Exception ex =  null;
+                    try
+                    {
+                        var resource = string.Format(CultureInfo.InvariantCulture, "{0}.{1}.7z.dll.gz", thisType.Namespace, bitness);
+                        var resourceStream = thisType.Assembly.GetManifestResourceStream(resource);
+                        if (resourceStream != null)
+                        {
+                            using (var gzipStream = new GZipStream(resourceStream, System.IO.Compression.CompressionMode.Decompress))
+                            {
+                                using (var fileStream = File.Create(_libraryFileName))
+                                {
+                                    //Would normally use gzipStream.CopyTo(fileStream) but this is .NET 2.0 compliant.
+                                    var buffer = new byte[4096];
+                                    int count;
+                                    while ((count = gzipStream.Read(buffer, 0, buffer.Length)) != 0)
+                                        fileStream.Write(buffer, 0, count);
+                                    return _libraryFileName;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        ex = e;
+                        if(File.Exists(_libraryFileName))
+                            File.Delete(_libraryFileName);
+                    }
+                    if (default7zPath != null)
+                    {
+                        var testPath = Path.Combine(default7zPath, String.Concat(bitness, Path.DirectorySeparatorChar, "7z.dll"));
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                        testPath = Path.Combine(default7zPath, String.Concat(bitness, Path.DirectorySeparatorChar, "7za.dll"));
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                        var bitnessSansX = IntPtr.Size == 4 ? "86" : "64";
+                        var sevenZipWithBitDllName = string.Format(CultureInfo.InvariantCulture, "7z{0}.dll", bitnessSansX);
+                        testPath = Path.Combine(default7zPath, sevenZipWithBitDllName);
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                        var sevenZipAWithBitDllName = string.Format(CultureInfo.InvariantCulture, "7za{0}.dll", bitnessSansX);
+                        testPath = Path.Combine(default7zPath, sevenZipAWithBitDllName);
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                        testPath = Path.Combine(default7zPath, "7z.dll");
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                        testPath = Path.Combine(default7zPath, "7za.dll");
+                        if (File.Exists(testPath))
+                            return _libraryFileName = testPath;
+                    }
+                    _libraryFileName = null;
+                    throw new SevenZipLibraryException("Unable to locate the 7z.dll. Please call SetLibraryPath() or set app.config AppSetting '7zLocation' " +
+                                                        "which must be path to the proper bit 7z.dll", ex);
+                }
+                finally
+                {
+                    if (ownsHandle)
+                        mutex.ReleaseMutex();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the application-wide default module path of the native 7zip library.
+        /// </summary>
+        /// <param name="libraryPath">The native 7zip module path.</param>
+        /// <remarks>
+        /// This method must be called prior to any other calls to this library.
+        /// The <paramref name="libraryPath" /> can be relative or absolute.
+        /// </remarks>
         public static void SetLibraryPath(string libraryPath)
         {
-            if (_modulePtr != IntPtr.Zero && !Path.GetFullPath(libraryPath).Equals( 
-                Path.GetFullPath(_libraryFileName), StringComparison.OrdinalIgnoreCase))
+            if (_modulePtr != IntPtr.Zero && !Path.GetFullPath(libraryPath).Equals(Path.GetFullPath(_libraryFileName), StringComparison.OrdinalIgnoreCase))
             {
                 throw new SevenZipLibraryException(
                     "can not change the library path while the library \"" + _libraryFileName + "\" is being used.");
@@ -571,7 +712,18 @@ namespace SevenZip
             _libraryFileName = libraryPath;
             _features = null;
         }
-#endif
+
+        /// <summary>
+        /// Returns the version information of the native 7zip library.
+        /// </summary>
+        /// <returns>An object representing the version information of the native 7zip library.</returns>
+        public static FileVersionInfo GetLibraryVersion()
+        {
+            var path = GetLibraryPath();
+            var version = FileVersionInfo.GetVersionInfo(path);
+
+            return version;
+        }
     }
 #endif
 }

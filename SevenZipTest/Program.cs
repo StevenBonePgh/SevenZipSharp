@@ -45,6 +45,9 @@ namespace SevenZipTest
                 Console.WriteLine(((uint)features).ToString("X6"));
             */
 
+            var libraryVersion = SevenZip.SevenZipExtractor.GetLibraryVersion();
+            Console.WriteLine(libraryVersion);
+
             #region Temporary test
             var features = SevenZip.SevenZipExtractor.CurrentLibraryFeatures;
             Console.WriteLine(((uint)features).ToString("X6"));
