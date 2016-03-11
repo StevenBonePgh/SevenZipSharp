@@ -21,18 +21,21 @@ using System.Globalization;
 using System.Configuration;
 using System.Diagnostics;
 using System.Security.Permissions;
+using System.Security.AccessControl;
+using System.Security.Principal;
 #endif
 #if WINCE
 using OpenNETCF.Diagnostics;
+using OpenNETCF.Threading;
+using Mutex = OpenNETCF.Threading.NamedMutex;
+#else
+using System.Threading;
 #endif
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
-using System.Security.Principal;
 using System.Text;
-using System.Threading;
 
 #if MONO
 using SevenZip.Mono.COM;
@@ -446,11 +449,10 @@ namespace SevenZip
                     }
 #endif
                     object result;
-                    Guid interfaceId =
 #if !WINCE && !MONO
- typeof(IInArchive).GUID;
+                    Guid interfaceId = typeof(IInArchive).GUID;
 #else
-                new Guid(((GuidAttribute)typeof(IInArchive).GetCustomAttributes(typeof(GuidAttribute), false)[0]).Value);
+                    Guid interfaceId = new Guid(((GuidAttribute)typeof(IInArchive).GetCustomAttributes(typeof(GuidAttribute), false)[0]).Value);
 #endif
                     Guid classID = Formats.InFormatGuids[format];
                     try
@@ -471,9 +473,7 @@ namespace SevenZip
                     _inArchives[user][format] = result as IInArchive;
                 }
                 return _inArchives[user][format];
-#if !WINCE && !MONO
             }
-#endif
         }
 
 #if COMPRESS
@@ -505,11 +505,10 @@ namespace SevenZip
                     }
 #endif
                     object result;
-                    Guid interfaceId =
 #if !WINCE && !MONO
- typeof(IOutArchive).GUID;
+                    Guid interfaceId = typeof(IOutArchive).GUID;
 #else
-                    new Guid(((GuidAttribute)typeof(IOutArchive).GetCustomAttributes(typeof(GuidAttribute), false)[0]).Value);
+                    Guid interfaceId = new Guid(((GuidAttribute)typeof(IOutArchive).GetCustomAttributes(typeof(GuidAttribute), false)[0]).Value);
 #endif
                     Guid classID = Formats.OutFormatGuids[format];
                     try
@@ -530,27 +529,25 @@ namespace SevenZip
                     _outArchives[user][format] = result as IOutArchive;
                 }
                 return _outArchives[user][format];
-#if !WINCE && !MONO
             }
-#endif
-
         }
 #endif
 
         /// <summary>   Gets the 7zip library path.</summary>
         /// <exception cref="TimeoutException"> Thrown when a Timeout error condition occurs.</exception>
         /// <returns>   The library path.</returns>
-        /// <remarks> How we get the library path:
-        ///           1. [All] The value provided to a previous call to SetLibraryPath() is used.  
-        ///           2. [WindowsCE] A file called 7z.dll in the same directory as this assembly.  
-        ///           3. [Full Framework] app.config AppSetting '7zLocation' which must be path to the proper bit 7z.dll  
-        ///           4. [All] Embedded resource is extracted to %TEMP% and used. (assuming build with embedded 7z.dll is used)  
-        ///           5. [All] 7z.dll from a x86 or x64 subdirectory of this assembly's directory.  
-        ///           6. [All] 7za.dll from a x86 or x64 subdirectory of this assembly's directory.  
-        ///           7. [All] 7z86.dll or 7z64.dll in the same directory as this assembly.    
-        ///           8. [All] 7za86.dll or 7za64.dll in the same directory as this assembly.    
-        ///           9. [All] A file called 7z.dll in the same directory as this assembly.  
-        ///           10. [All] A file called 7za.dll in the same directory as this assembly.  
+        /// <remarks> In WindowsCE, a file called 7z.dll in the same directory as this assembly.  If it does not exist,
+        ///           an Embedded resource is extracted to this directory and used.  All other platforms use the following
+        ///           logic:
+        ///           1. [All] The value provided to a previous call to SetLibraryPath() is used.
+        ///           2. [Full Framework] app.config AppSetting '7zLocation' which must be path to the proper bit 7z.dll  
+        ///           3. [All] Embedded resource is extracted to %TEMP% and used. (assuming build with embedded 7z.dll is used)  
+        ///           4. [All] 7z.dll from a x86 or x64 subdirectory of this assembly's directory.  
+        ///           5. [All] 7za.dll from a x86 or x64 subdirectory of this assembly's directory.  
+        ///           6. [All] 7z86.dll or 7z64.dll in the same directory as this assembly.
+        ///           7. [All] 7za86.dll or 7za64.dll in the same directory as this assembly.
+        ///           8. [All] A file called 7z.dll in the same directory as this assembly.  
+        ///           9. [All] A file called 7za.dll in the same directory as this assembly.  
         ///           If not found, we give up and fail.
         /// </remarks>
         private static string GetLibraryPath()
@@ -577,11 +574,17 @@ namespace SevenZip
                 _libraryFileName = sevenZipLocation;
                 return _libraryFileName;
             }
-#endif
+            var bitness = "arm";
+#else
             var bitness = IntPtr.Size == 4 ? "x86" : "x64";
+#endif
             var thisType = typeof(SevenZipLibraryManager);
+#if WINCE
+            _libraryFileName = sevenZipLocation;
+#else
             var version = thisType.Assembly.GetName().Version.ToString(3);
-            _libraryFileName = Path.Combine(Path.GetTempPath(), String.Join(Path.DirectorySeparatorChar.ToString(), new string[] { "SevenZipSharp", version, bitness, "7z.dll"}));
+            _libraryFileName = Path.Combine(Path.GetTempPath(), String.Join(Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture), new string[] { "SevenZipSharp", version, bitness, "7z.dll" }));
+#endif
             if (File.Exists(_libraryFileName))
                 return _libraryFileName;
 
@@ -590,15 +593,16 @@ namespace SevenZip
             //      to make our assembly smaller and future proof, but you'd need to handle distributing and setting the dll yourself.
             // Extract the embedded DLL http://stackoverflow.com/a/768429/2073621
             // Synchronize access to the file across processes http://stackoverflow.com/a/229567/2073621
-            var guid = ((GuidAttribute)thisType.Assembly.GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value.ToString();
+            var guid = ((GuidAttribute)thisType.Assembly.GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value.ToString(CultureInfo.InvariantCulture);
             var name = string.Format(CultureInfo.InvariantCulture, "Global\\{{{0}}}", guid);
             using (var mutex = new Mutex(false, name))
             {
+#if !WINCE
                 var access = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
                 var security = new MutexSecurity();
                 security.AddAccessRule(access);
                 mutex.SetAccessControl(security);
-
+#endif
                 var ownsHandle = false;
                 try
                 {
@@ -611,7 +615,11 @@ namespace SevenZip
                             throw new TimeoutException(timeoutMessage);
                         }
                     }
+#if WINCE
+                    catch
+#else
                     catch (AbandonedMutexException)
+#endif
                     {
                         // Previous process terminated abnormally
                         ownsHandle = true;
@@ -629,9 +637,17 @@ namespace SevenZip
                     Exception ex =  null;
                     try
                     {
-                        var resource = string.Format(CultureInfo.InvariantCulture, "{0}.{1}.7z.dll.gz", thisType.Namespace, bitness);
+#if WINCE
+                        var resource = string.Format(CultureInfo.InvariantCulture, "{0}.{1}.7z.dll.gz", thisType.Assembly.GetName().Name, bitness); //packing of resources differ
+#else
+                        var resource = string.Format(CultureInfo.InvariantCulture, "{0}.{1}.7z.dll.gz", thisType.Namespace, bitness); //packing of resources differ
+#endif
                         var resourceStream = thisType.Assembly.GetManifestResourceStream(resource);
-                        if (resourceStream != null)
+                        if (resourceStream == null)
+                        {
+                            ex = new InvalidProgramException(string.Format("Could not extract resource named '{0}' from assembly '{1}'", resource, thisType.Assembly.FullName));
+                        }
+                        else
                         {
                             using (var gzipStream = new GZipStream(resourceStream, System.IO.Compression.CompressionMode.Decompress))
                             {
@@ -653,6 +669,7 @@ namespace SevenZip
                         if(File.Exists(_libraryFileName))
                             File.Delete(_libraryFileName);
                     }
+#if !WINCE
                     if (default7zPath != null)
                     {
                         var testPath = Path.Combine(default7zPath, String.Concat(bitness, Path.DirectorySeparatorChar, "7z.dll"));
@@ -677,6 +694,7 @@ namespace SevenZip
                         if (File.Exists(testPath))
                             return _libraryFileName = testPath;
                     }
+#endif
                     _libraryFileName = null;
                     throw new SevenZipLibraryException("Unable to locate the 7z.dll. Please call SetLibraryPath() or set app.config AppSetting '7zLocation' " +
                                                         "which must be path to the proper bit 7z.dll", ex);
@@ -690,7 +708,7 @@ namespace SevenZip
         }
 
         /// <summary>
-        /// Sets the application-wide default module path of the native 7zip library.
+        /// Sets the application-wide default module path of the native 7zip library. In WindowsCE this is a no-op.  The library MUST be in the app directory.
         /// </summary>
         /// <param name="libraryPath">The native 7zip module path.</param>
         /// <remarks>
@@ -699,6 +717,10 @@ namespace SevenZip
         /// </remarks>
         public static void SetLibraryPath(string libraryPath)
         {
+#if WINCE
+            //In WindowsCE this is a no-op.  The library MUST be in the app directory.
+            return;
+#else
             if (_modulePtr != IntPtr.Zero && !Path.GetFullPath(libraryPath).Equals(Path.GetFullPath(_libraryFileName), StringComparison.OrdinalIgnoreCase))
             {
                 throw new SevenZipLibraryException(
@@ -711,8 +733,10 @@ namespace SevenZip
             }
             _libraryFileName = libraryPath;
             _features = null;
+#endif
         }
 
+#if !WINCE
         /// <summary>
         /// Returns the version information of the native 7zip library.
         /// </summary>
@@ -724,6 +748,7 @@ namespace SevenZip
 
             return version;
         }
+#endif
     }
 #endif
 }

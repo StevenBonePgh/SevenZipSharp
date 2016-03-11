@@ -74,7 +74,14 @@ namespace SevenZip
         static ArchiveExtractCallback()
         {
             //  GetInvalidFileNameChars() is not complete.  Should also include: quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).
+#if WINCE
+            char[] nonprintables = new char[32];
+            for (int i = 0; i < 32; i++)
+                nonprintables[i] = (char) i;
+            var invalidFileNameChars = new string(nonprintables) + "\"<>|:*?/\\";
+#else
             var invalidFileNameChars = Path.GetInvalidFileNameChars() + "\"<>|\b\t\0";
+#endif
             InvalidFileNameCharsRegex = new Regex(string.Format("[{0}]", Regex.Escape(invalidFileNameChars)), RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
             //  GetInvalidPathChars() is not complete.  Should also include: quote ("), less than (<), greater than (>), pipe (|), backspace (\b), null (\0), and tab (\t).

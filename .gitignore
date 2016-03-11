@@ -32,9 +32,15 @@
 /SevenZip/obj
 /SevenZip/bin
 /SevenZip/.vs
+/SevenZipSharpMobile/bin
+/SevenZipSharpMobile/obj
+/SevenZipSharpMobileTest/bin
+/SevenZipSharpMobileTest/obj
 /SevenZipTestWPF/bin
 /SevenZipTestWPF/obj
 /SevenZipTestWPF/.vs
 /SevenZipTest/obj
 /SevenZipTest/bin
+/SevenZipTestForms/obj
+/SevenZipTestForms/bin
 /SevenZipTest/.vs

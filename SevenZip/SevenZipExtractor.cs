@@ -65,10 +65,12 @@ namespace SevenZip
         private ReadOnlyCollection<ArchiveProperty> _archiveProperties;
         //SAB: Init this now to prevent later null ref based on how this object is constructed.
         private ReadOnlyCollection<string> _volumeFileNames = new ReadOnlyCollection<string>(new List<string>());
+#if !WINCE
         /// <summary>
         /// This is used to lock possible Dispose() calls.
         /// </summary>
         private bool _asynchronousDisposeLock;
+#endif
 
         #region Constructors
         /// <summary>
@@ -808,11 +810,13 @@ namespace SevenZip
         /// </summary>
         public void Dispose()
         {
+#if !WINCE
             if (_asynchronousDisposeLock)
             {
                 Debug.Assert(false, "SevenZipExtractor instance must not be disposed while making an asynchronous method call.");
                 return;
             }
+#endif
             if (!_disposed)
             {                
                 CommonDispose();
@@ -1010,12 +1014,19 @@ namespace SevenZip
                     {
                         archiveStream.Dispose();
                     }
+#if DOTNET20 || WINCE //VS2008 does not like #pragma warning disable CC0004
+                    catch
+                    {
+                        //ignored
+                    }
+#else
 #pragma warning disable CC0004 // Catch block cannot be empty
                     catch
                     {
                         //ignored
                     }
 #pragma warning restore CC0004 // Catch block cannot be empty
+#endif
                     _archiveStream = null;
                 }
                 _opened = false;
@@ -1123,6 +1134,7 @@ namespace SevenZip
                     throw;
                 }
             }
+
             OnEvent(ExtractionFinished, EventArgs.Empty, false);
             ThrowUserException();
         }

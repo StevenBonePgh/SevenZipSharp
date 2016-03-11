@@ -50,7 +50,7 @@ namespace SevenZipTest
 
             #region Temporary test
             var features = SevenZip.SevenZipExtractor.CurrentLibraryFeatures;
-            Console.WriteLine(((uint)features).ToString("X6"));
+            Console.WriteLine("Features: {0}{2}{1}", ((uint)features).ToString("X6"), features, Environment.NewLine);
             #endregion
 
             #region Extraction test - ExtractFiles

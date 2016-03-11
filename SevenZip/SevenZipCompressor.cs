@@ -1662,7 +1662,11 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
                                 streamDict.Add(pair.Key, stream);
                                 continue;
                             default:
+#if WINCE
+                                throw new ArgumentOutOfRangeException("CompressionErrorBehavior", "Invalid CompressionErrorBehavior setting.");
+#else
                                 throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
+#endif
                         }
                     }
 
@@ -1686,7 +1690,11 @@ Enum.GetName(typeof(ZipEncryptionMethod), ZipEncryptionMethod))
                                 streamDict.Add(pair.Key, stream);
                                 continue;
                             default:
+#if WINCE
+                                throw new ArgumentOutOfRangeException("CompressionErrorBehavior", "Invalid CompressionErrorBehavior setting.");
+#else
                                 throw new ArgumentOutOfRangeException("CompressionErrorBehavior", CompressionErrorBehavior, "Invalid CompressionErrorBehavior setting.");
+#endif
                         }
                     }
                 }

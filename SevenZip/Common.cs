@@ -17,13 +17,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 #if !WINCE
 using System.Runtime.Remoting.Messaging;
+using System.Diagnostics;
+#else
+using OpenNETCF.Diagnostics;
 #endif
-#if !DOTNET20
+#if !(DOTNET20 || WINCE)
 using System.Windows.Threading;
 #endif
 #if MONO
@@ -195,6 +197,8 @@ Dispatcher == null
 #else // WINCE
         internal void OnEvent<T>(EventHandler<T> handler, T e, bool synchronous) where T : System.EventArgs
         {
+            if (handler == null)
+                return;
             try
             {
                 handler(this, e);
@@ -373,6 +377,7 @@ Dispatcher == null
         }
 #endif
 
+#if !WINCE
         /// <summary>
         /// Returns the version information of the native 7zip library.
         /// </summary>
@@ -382,7 +387,7 @@ Dispatcher == null
         {
             return SevenZipLibraryManager.GetLibraryVersion();
         }
-
+#endif
         /// <summary>
         /// Gets the current library features.
         /// </summary>

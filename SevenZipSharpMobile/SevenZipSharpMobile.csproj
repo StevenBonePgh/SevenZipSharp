@@ -19,7 +19,7 @@
     <FormFactorID>
     </FormFactorID>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>SevenZip.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\SevenZip\SevenZip.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -48,10 +48,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
-    <Reference Include="OpenNETCF, Version=2.3.0.39, Culture=neutral, PublicKeyToken=e60dbea84bb431b7, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>OpenNetCF\OpenNETCF.dll</HintPath>
-    </Reference>
+    <Reference Include="OpenNETCF, Version=2.3.12317.0, Culture=neutral, PublicKeyToken=e60dbea84bb431b7, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -107,6 +104,48 @@
     <Compile Include="..\SevenZip\NativeMethods.cs">
       <Link>NativeMethods.cs</Link>
     </Compile>
+    <Compile Include="..\SevenZip\sdk\Common\CRC.cs">
+      <Link>sdk\Common\CRC.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Common\InBuffer.cs">
+      <Link>sdk\Common\InBuffer.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Common\OutBuffer.cs">
+      <Link>sdk\Common\OutBuffer.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZMA\LzmaBase.cs">
+      <Link>sdk\Compress\LZMA\LzmaBase.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZMA\LzmaDecoder.cs">
+      <Link>sdk\Compress\LZMA\LzmaDecoder.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZMA\LzmaEncoder.cs">
+      <Link>sdk\Compress\LZMA\LzmaEncoder.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZ\IMatchFinder.cs">
+      <Link>sdk\Compress\LZ\IMatchFinder.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZ\LzBinTree.cs">
+      <Link>sdk\Compress\LZ\LzBinTree.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZ\LzInWindow.cs">
+      <Link>sdk\Compress\LZ\LzInWindow.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\LZ\LzOutWindow.cs">
+      <Link>sdk\Compress\LZ\LzOutWindow.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\RangeCoder\RangeCoder.cs">
+      <Link>sdk\Compress\RangeCoder\RangeCoder.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\RangeCoder\RangeCoderBit.cs">
+      <Link>sdk\Compress\RangeCoder\RangeCoderBit.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\Compress\RangeCoder\RangeCoderBitTree.cs">
+      <Link>sdk\Compress\RangeCoder\RangeCoderBitTree.cs</Link>
+    </Compile>
+    <Compile Include="..\SevenZip\sdk\ICoder.cs">
+      <Link>sdk\ICoder.cs</Link>
+    </Compile>
     <Compile Include="..\SevenZip\SevenZipCompressor.cs">
       <Link>SevenZipCompressor.cs</Link>
     </Compile>
@@ -120,27 +159,16 @@
       <Link>StreamWrappers.cs</Link>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="sdk\Common\CRC.cs" />
-    <Compile Include="sdk\Common\InBuffer.cs" />
-    <Compile Include="sdk\Common\OutBuffer.cs" />
-    <Compile Include="sdk\Compress\LZMA\LzmaBase.cs" />
-    <Compile Include="sdk\Compress\LZMA\LzmaDecoder.cs" />
-    <Compile Include="sdk\Compress\LZMA\LzmaEncoder.cs" />
-    <Compile Include="sdk\Compress\LZ\IMatchFinder.cs" />
-    <Compile Include="sdk\Compress\LZ\LzBinTree.cs" />
-    <Compile Include="sdk\Compress\LZ\LzInWindow.cs" />
-    <Compile Include="sdk\Compress\LZ\LzOutWindow.cs" />
-    <Compile Include="sdk\Compress\RangeCoder\RangeCoder.cs" />
-    <Compile Include="sdk\Compress\RangeCoder\RangeCoderBit.cs" />
-    <Compile Include="sdk\Compress\RangeCoder\RangeCoderBitTree.cs" />
-    <Compile Include="sdk\ICoder.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="7z.dll">
-      <COMRegister>false</COMRegister>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="arch\Test.txt" />
+    <Content Include="gpl.txt" />
+    <None Include="OpenNetCF\OpenNETCF.xml" />
+    <None Include="..\SevenZip\SevenZip.snk">
+      <Link>SevenZip.snk</Link>
+    </None>
+    <None Include="arm\7z.dll" />
+    <None Include="OpenNetCF\OpenNETCF.dll" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="arch\Test.bzip2.7z" />
@@ -173,7 +201,7 @@
     <EmbeddedResource Include="arch\Test.zip" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="SevenZip.snk" />
+    <EmbeddedResource Include="arm\7z.dll.gz" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
   <ProjectExtensions>
