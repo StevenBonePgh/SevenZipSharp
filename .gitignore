@@ -36,6 +36,8 @@
 /SevenZipSharpMobile/obj
 /SevenZipSharpMobileTest/bin
 /SevenZipSharpMobileTest/obj
+/SevenZipSharpMobileUnitTest/bin
+/SevenZipSharpMobileUnitTest/obj
 /SevenZipTestWPF/bin
 /SevenZipTestWPF/obj
 /SevenZipTestWPF/.vs
@@ -44,3 +46,4 @@
 /SevenZipTestForms/obj
 /SevenZipTestForms/bin
 /SevenZipTest/.vs
+TestResults

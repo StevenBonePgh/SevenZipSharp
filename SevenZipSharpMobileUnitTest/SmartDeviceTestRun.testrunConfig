@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<TestRunConfiguration name="Local SmartDevices Test Run" id="a65cc9a3-8f42-42f0-9e3a-122951c64256" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2006">
+  <Description>This is a default test run configuration for a local SmartDevice test run.</Description>
+  <Deployment>
+    <DeploymentItem filename="SevenZipSharpMobile\arm\7z.dll" />
+    <DeploymentItem filename="SevenZipSharpMobileTest\gpl.7z" />
+  </Deployment>
+  <Hosts type="Smart Device">
+    <DeviceHostRunConfigData name="Smart Device" deviceId="48B7CBFE-9245-43C4-AEB6-968A31E5A8A7" deviceName="USA Windows Mobile 6.5 Professional WVGA Emulator" platformId="b2c48bd2-963d-4549-9169-1fa021dce484" platformName="Windows Mobile 6 Professional SDK" uiPlatformId="b2c48bd2-963d-4549-9169-1fa021dce484" />
+  </Hosts>
+  <TestTypeSpecific />
+</TestRunConfiguration>

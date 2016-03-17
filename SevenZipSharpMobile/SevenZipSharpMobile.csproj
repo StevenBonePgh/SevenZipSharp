@@ -19,7 +19,7 @@
     <FormFactorID>
     </FormFactorID>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\SevenZip\SevenZip.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\SevenZip.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -164,7 +164,7 @@
     <Content Include="arch\Test.txt" />
     <Content Include="gpl.txt" />
     <None Include="OpenNetCF\OpenNETCF.xml" />
-    <None Include="..\SevenZip\SevenZip.snk">
+    <None Include="..\SevenZip.snk">
       <Link>SevenZip.snk</Link>
     </None>
     <None Include="arm\7z.dll" />

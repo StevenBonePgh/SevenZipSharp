@@ -13,7 +13,7 @@
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>SevenZip.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\SevenZip.snk</AssemblyOriginatorKeyFile>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <UpgradeBackupLocation>
@@ -159,7 +159,9 @@
     <EmbeddedResource Include="arch\Test.txt.gz" />
     <EmbeddedResource Include="arch\Test.txt.xz" />
     <EmbeddedResource Include="arch\Test.zip" />
-    <None Include="SevenZip.snk" />
+    <None Include="..\SevenZip.snk">
+      <Link>SevenZip.snk</Link>
+    </None>
     <None Include="sfx\7z.sfx" />
     <None Include="sfx\7zCon.sfx" />
   </ItemGroup>
